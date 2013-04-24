@@ -26,6 +26,8 @@
      "test": "node-gyp configure build; nodeunit test/"
    },
    "devDependencies": {
-     "nodeunit": ">=0.3.1"
+     "nodeunit": ">=0.3.1",
+     "wrench": "*",
+     "async":"*"
    }
 }
