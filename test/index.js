@@ -8,11 +8,13 @@ var clucene = new cl.Lucene();
 var indexPath = './test.index';
 
 exports['add new document'] = function (test) {
-    if (path.existsSync(indexPath)) {
+    if (fs.existsSync(indexPath)) {
         wrench.rmdirSyncRecursive(indexPath);
     }
     
+    console.log('hi');
     var doc = new cl.Document();
+    console.log('hi2');
     var docId = '1';
 
     doc.addField('name', 'Eric Jennings', cl.STORE_YES|cl.INDEX_TOKENIZED);

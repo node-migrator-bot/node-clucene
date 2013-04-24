@@ -1,12 +1,11 @@
 #include <iostream>
 #include <v8.h>
 #include <node.h>
-//Thanks bnoordhuis and jerrysv from #node.js
-
+#include <node_version.h>
 #include <sstream>
-
 #include <CLucene.h>
 #include <CLucene/index/IndexModifier.h>
+
 #include "Misc.h"
 #include "repl_tchar.h"
 #include "StringBuffer.h"
@@ -95,10 +94,10 @@ protected:
             delete key;
             delete value;
             docWrapper->document()->add(*field);
-        } catch (CLuceneError& E) {
-            delete key;
-            delete value;
-            return scope.Close(ThrowException(Exception::TypeError(String::New(E.what()))));
+        // } catch (CLuceneError& E) {
+        //     delete key;
+        //     delete value;
+        //     return scope.Close(ThrowException(Exception::TypeError(String::New(E.what()))));
         } catch(...) {
             delete key;
             delete value;
@@ -170,9 +169,9 @@ private:
             //printf("Finished opening: %s\n", index.c_str());
             readers_[index] = reader;
 
-        } catch (CLuceneError& E) {
-            printf("get_reader Exception: %s\n", E.what());
-            error.assign(E.what());
+        // } catch (CLuceneError& E) {
+        //     printf("get_reader Exception: %s\n", E.what());
+        //     error.assign(E.what()); 
         } catch(...) {
             error = "Got an unknown exception \n";
             printf("get_reader Exception:");
@@ -265,34 +264,34 @@ public:
         REQ_STR_ARG(0);
         REQ_OBJ_ARG(1);
         REQ_STR_ARG(2);
-        REQ_FUN_ARG(3, callback);
+        ///! REQ_FUN_ARG(3, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
 
-        
+        uv_work_t *req = new uv_work_t;
         index_baton_t* baton = new index_baton_t;
+        req->data = baton;
+
         baton->lucene = lucene;
         baton->docID.assign(*v8::String::Utf8Value(args[0]));
         baton->doc = ObjectWrap::Unwrap<LuceneDocument>(args[1]->ToObject());
         baton->index.assign(*v8::String::Utf8Value(args[2]));
-        baton->callback = Persistent<Function>::New(callback);
+        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[3]));
         baton->error.clear();
         
         lucene->Ref();
         baton->doc->Ref();
 
-
-        eio_custom(EIO_Index, EIO_PRI_DEFAULT, EIO_AfterIndex, baton);
-
-
-        ev_ref(EV_DEFAULT_UC);
+        uv_queue_work(uv_default_loop(), req, EIO_Index, EIO_AfterIndex);
+        uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
+        delete req;
     }
         
     
-    static void EIO_Index(eio_req* req) {
+    static void EIO_Index(uv_work_t* req) {
 
         index_baton_t* baton = static_cast<index_baton_t*>(req->data);
 
@@ -356,8 +355,8 @@ public:
           //writer = 0;
 
           baton->indexTime = (Misc::currentTimeMillis() - start);
-        } catch (CLuceneError& E) {
-          baton->error.assign(E.what());
+        // } catch (CLuceneError& E) {
+        //   baton->error.assign(E.what());
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -366,10 +365,10 @@ public:
         return;
     }
 
-    static int EIO_AfterIndex(eio_req* req) {
+    static void EIO_AfterIndex(uv_work_t* req, int status) {
         HandleScope scope;
         index_baton_t* baton = static_cast<index_baton_t*>(req->data);
-        ev_unref(EV_DEFAULT_UC);
+        uv_unref((uv_handle_t*) req);
         baton->lucene->Unref();
         baton->doc->Unref();
 
@@ -394,7 +393,6 @@ public:
 
         baton->callback.Dispose();
         delete baton;
-        return 0;
     }
     
     
@@ -416,28 +414,32 @@ public:
 
         REQ_STR_ARG(0);
         REQ_STR_ARG(1);
-        REQ_FUN_ARG(2, callback);
+        ///! REQ_FUN_ARG(2, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
 
+        uv_work_t *req = new uv_work_t; 
         indexdelete_baton_t* baton = new indexdelete_baton_t;
+        req->data = baton;
+
+
         baton->lucene = lucene;
         baton->docID = new v8::String::Utf8Value(args[0]);
         baton->index = *v8::String::Utf8Value(args[1]);
-        baton->callback = Persistent<Function>::New(callback);
+        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[2]));
         baton->error.clear();
-        
         lucene->Ref();
 
-        eio_custom(EIO_DeleteDocument, EIO_PRI_DEFAULT, EIO_AfterDeleteDocument, baton);
-        ev_ref(EV_DEFAULT_UC);
+        uv_queue_work(uv_default_loop(), req, EIO_DeleteDocument, EIO_AfterDeleteDocument);
+        uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
+        delete req;
     }
         
     
-    static void EIO_DeleteDocument(eio_req* req) {
+    static void EIO_DeleteDocument(uv_work_t* req) {
         indexdelete_baton_t* baton = static_cast<indexdelete_baton_t*>(req->data);
 
         lucene::analysis::standard::StandardAnalyzer an;
@@ -459,8 +461,8 @@ public:
 
             baton->indexTime = (Misc::currentTimeMillis() - start);
             baton->lucene->close_reader(baton->index);
-        } catch (CLuceneError& E) {
-            baton->error.assign(E.what());
+        // } catch (CLuceneError& E) {
+        //     baton->error.assign(E.what());
         } catch(...) {
             baton->error = "Got an unknown exception";
         }
@@ -469,10 +471,10 @@ public:
         return;
     }
 
-    static int EIO_AfterDeleteDocument(eio_req* req) {
+    static void EIO_AfterDeleteDocument(uv_work_t* req, int status) {
         HandleScope scope;
         indexdelete_baton_t* baton = static_cast<indexdelete_baton_t*>(req->data);
-        ev_unref(EV_DEFAULT_UC);
+        uv_unref((uv_handle_t*) req);
         baton->lucene->Unref();
 
         Handle<Value> argv[2];
@@ -496,7 +498,6 @@ public:
 
         baton->callback.Dispose();
         delete baton;
-        return 0;
     }
     
     struct indexdeletebytype_baton_t {
@@ -516,27 +517,31 @@ public:
 
         REQ_STR_ARG(0);
         REQ_STR_ARG(1);
-        REQ_FUN_ARG(2, callback);
+        ///! REQ_FUN_ARG(2, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
 
+        uv_work_t *req = new uv_work_t;   
         indexdeletebytype_baton_t* baton = new indexdeletebytype_baton_t;
+        req->data = baton;
+
         baton->lucene = lucene;
         baton->type = *v8::String::Utf8Value(args[0]);
         baton->index = *v8::String::Utf8Value(args[1]);
-        baton->callback = Persistent<Function>::New(callback);
+        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[2]));
         baton->error.clear();
         lucene->Ref();
 
-        eio_custom(EIO_DeleteDocumentsByType, EIO_PRI_DEFAULT, EIO_AfterDeleteDocumentsByType, baton);
-        ev_ref(EV_DEFAULT_UC);
+        uv_queue_work(uv_default_loop(), req, EIO_DeleteDocumentsByType, EIO_AfterDeleteDocumentsByType);
+        uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
+        delete req;
     }
         
     
-    static void EIO_DeleteDocumentsByType(eio_req* req) {
+    static void EIO_DeleteDocumentsByType(uv_work_t* req) {
         indexdeletebytype_baton_t* baton = static_cast<indexdeletebytype_baton_t*>(req->data);
 
         lucene::analysis::standard::StandardAnalyzer an;
@@ -557,8 +562,8 @@ public:
 
           baton->indexTime = (Misc::currentTimeMillis() - start);
           baton->lucene->close_reader(baton->index);
-        } catch (CLuceneError& E) {
-          baton->error.assign(E.what());
+        // } catch (CLuceneError& E) {
+        //   baton->error.assign(E.what());
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -566,10 +571,10 @@ public:
         return;
     }
 
-    static int EIO_AfterDeleteDocumentsByType(eio_req* req) {
+    static void EIO_AfterDeleteDocumentsByType(uv_work_t* req, int status) {
         HandleScope scope;
         indexdeletebytype_baton_t* baton = static_cast<indexdeletebytype_baton_t*>(req->data);
-        ev_unref(EV_DEFAULT_UC);
+        uv_unref((uv_handle_t*) req);
         baton->lucene->Unref();
 
         Handle<Value> argv[2];
@@ -593,7 +598,6 @@ public:
 
         baton->callback.Dispose();
         delete baton;
-        return 0;
     }
     
 
@@ -627,27 +631,30 @@ public:
 
         REQ_STR_ARG(0);
         REQ_STR_ARG(1);
-        REQ_FUN_ARG(2, callback);
+        ///! REQ_FUN_ARG(2, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
 
+        uv_work_t *req = new uv_work_t;  
         search_baton_t* baton = new search_baton_t;
+        req->data = baton;
+
         baton->lucene = lucene;
         baton->index.assign(*v8::String::Utf8Value(args[0]));
         baton->search.assign(*v8::String::Utf8Value(args[1]));
-        baton->callback = Persistent<Function>::New(callback);
+        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[2]));
         baton->error.clear();
 
         lucene->Ref();
-
-        eio_custom(EIO_Search, EIO_PRI_DEFAULT, EIO_AfterSearch, baton);
-        ev_ref(EV_DEFAULT_UC);
+        uv_queue_work(uv_default_loop(), req, EIO_Search, EIO_AfterSearch);
+        uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
+        delete req;
     }
 
-    static void EIO_Search(eio_req* req)
+    static void EIO_Search(uv_work_t* req)
     {
         search_baton_t* baton = static_cast<search_baton_t*>(req->data);
         uint64_t start = Misc::currentTimeMillis();
@@ -692,8 +699,8 @@ public:
             _CLLDELETE(hits);
             _CLLDELETE(q);
             baton->searchTime = (Misc::currentTimeMillis() - start);
-        } catch (CLuceneError& E) {
-          baton->error.assign(E.what());
+        // } catch (CLuceneError& E) {
+        //   baton->error.assign(E.what()); 
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -701,11 +708,11 @@ public:
         return;
     }
 
-    static int EIO_AfterSearch(eio_req* req)
+    static void EIO_AfterSearch(uv_work_t* req, int status)
     {
         HandleScope scope;
         search_baton_t* baton = static_cast<search_baton_t*>(req->data);
-        ev_unref(EV_DEFAULT_UC);
+        uv_unref((uv_handle_t*) req);
         baton->lucene->Unref();
 
         Handle<Value> argv[3];
@@ -743,8 +750,6 @@ public:
         
         baton->callback.Dispose();  
         delete baton;
-
-        return 0;
     }
 
     struct optimize_baton_t
@@ -760,26 +765,30 @@ public:
         HandleScope scope;
 
         REQ_STR_ARG(0);
-        REQ_FUN_ARG(1, callback);
+        ///! REQ_FUN_ARG(1, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
 
-        optimize_baton_t* baton = new optimize_baton_t;
+        uv_work_t *req = new uv_work_t;   
+        optimize_baton_t* baton = new optimize_baton_t; 
+        req->data = baton;
+
         baton->lucene = lucene;
-        baton->callback = Persistent<Function>::New(callback);
+        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[1]));
         baton->index = *v8::String::Utf8Value(args[0]);
         baton->error.clear();
 
         lucene->Ref();
 
-        eio_custom(EIO_Optimize, EIO_PRI_DEFAULT, EIO_AfterOptimize, baton);
-        ev_ref(EV_DEFAULT_UC);
+        uv_queue_work(uv_default_loop(), req, EIO_Optimize, EIO_AfterOptimize);
+        uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
+        delete req;
     }
 
-    static void EIO_Optimize(eio_req* req)
+    static void EIO_Optimize(uv_work_t* req)
     {
         optimize_baton_t* baton = static_cast<optimize_baton_t*>(req->data);
 
@@ -801,8 +810,8 @@ public:
 
         writer->close();
         
-        } catch (CLuceneError& E) {
-          baton->error.assign(E.what());
+        // } catch (CLuceneError& E) {
+        //   baton->error.assign(E.what());
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -810,13 +819,13 @@ public:
         return;
     }
 
-    static int EIO_AfterOptimize(eio_req* req)
+    static void EIO_AfterOptimize(uv_work_t* req, int status)
     {
         HandleScope scope;
 
         optimize_baton_t* baton = static_cast<optimize_baton_t*>(req->data);
         
-        ev_unref(EV_DEFAULT_UC);
+        uv_unref((uv_handle_t*) req);
         baton->lucene->Unref();
 
         Handle<Value> argv[1];
@@ -838,8 +847,6 @@ public:
 
         baton->callback.Dispose();
         delete baton;
-
-        return 0;
     }
 };
 
