@@ -32,7 +32,6 @@
     "v8_use_snapshot": "true",
     "nodedir": "/Users/iii/.node-gyp/0.10.2",
     "copy_dev_lib": "true",
-    "standalone_static_library": 1,
-    "disable_shared": "true"
+    "standalone_static_library": 1
   }
 }

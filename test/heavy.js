@@ -1,7 +1,6 @@
 var path = require('path');
 var fs = require('fs');
 var wrench = require('wrench');
-var async = require('async');
 
 var cl = require('../clucene').CLucene;
 var clucene = new cl.Lucene();

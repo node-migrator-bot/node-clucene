@@ -44,18 +44,21 @@ const static int CL_MAX_DIR = 220;
   }
 
 class LuceneDocument : public ObjectWrap {
+    static Persistent<FunctionTemplate> s_dt;
 public:
     static void Initialize(v8::Handle<v8::Object> target) {
         HandleScope scope;
 
         Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
-        t->InstanceTemplate()->SetInternalFieldCount(1);
+        s_dt = Persistent<FunctionTemplate>::New(t);
+        s_dt->InstanceTemplate()->SetInternalFieldCount(1);
+        s_dt->SetClassName(String::NewSymbol("Lucene"));
 
         NODE_SET_PROTOTYPE_METHOD(t, "addField", AddField);
         NODE_SET_PROTOTYPE_METHOD(t, "clear", Clear);
 
-        target->Set(String::NewSymbol("Document"), t->GetFunction());
+        target->Set(String::NewSymbol("Document"), s_dt->GetFunction());
     }
 
     Document* document() { return &doc_; }
@@ -130,7 +133,7 @@ class Lucene : public ObjectWrap {
     static Persistent<FunctionTemplate> s_ct;
     
 private:
-    int m_count;
+    // int m_count;
     typedef std::map<std::string,IndexReader*> IndexReaderMap;
     IndexReaderMap readers_;
     typedef std::map<std::string, FSDirectory*> FSDirectoryMap;
@@ -192,7 +195,7 @@ private:
     }
 public:
 
-    static void Init(Handle<Object> target) {
+    static void Initialize(Handle<Object> target) {
         HandleScope scope;
 
         Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -211,7 +214,7 @@ public:
         target->Set(String::NewSymbol("Lucene"), s_ct->GetFunction());
     }
 
-    Lucene() : ObjectWrap(), m_count(0), writer_(0), an_(0) {}
+    Lucene() : ObjectWrap(), writer_(0), an_(0) {}
 
     ~Lucene() { }
 
@@ -264,7 +267,7 @@ public:
         REQ_STR_ARG(0);
         REQ_OBJ_ARG(1);
         REQ_STR_ARG(2);
-        ///! REQ_FUN_ARG(3, callback);
+        REQ_FUN_ARG(3, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
@@ -277,14 +280,14 @@ public:
         baton->docID.assign(*v8::String::Utf8Value(args[0]));
         baton->doc = ObjectWrap::Unwrap<LuceneDocument>(args[1]->ToObject());
         baton->index.assign(*v8::String::Utf8Value(args[2]));
-        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[3]));
+        baton->callback = Persistent<Function>::New(callback);
         baton->error.clear();
         
         lucene->Ref();
         baton->doc->Ref();
 
         uv_queue_work(uv_default_loop(), req, EIO_Index, EIO_AfterIndex);
-        uv_unref((uv_handle_t*) req);
+        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -414,7 +417,7 @@ public:
 
         REQ_STR_ARG(0);
         REQ_STR_ARG(1);
-        ///! REQ_FUN_ARG(2, callback);
+        REQ_FUN_ARG(2, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
@@ -427,12 +430,12 @@ public:
         baton->lucene = lucene;
         baton->docID = new v8::String::Utf8Value(args[0]);
         baton->index = *v8::String::Utf8Value(args[1]);
-        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+        baton->callback = Persistent<Function>::New(callback);
         baton->error.clear();
         lucene->Ref();
 
         uv_queue_work(uv_default_loop(), req, EIO_DeleteDocument, EIO_AfterDeleteDocument);
-        uv_unref((uv_handle_t*) req);
+        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -517,7 +520,7 @@ public:
 
         REQ_STR_ARG(0);
         REQ_STR_ARG(1);
-        ///! REQ_FUN_ARG(2, callback);
+        REQ_FUN_ARG(2, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
@@ -529,12 +532,12 @@ public:
         baton->lucene = lucene;
         baton->type = *v8::String::Utf8Value(args[0]);
         baton->index = *v8::String::Utf8Value(args[1]);
-        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+        baton->callback = Persistent<Function>::New(callback);
         baton->error.clear();
         lucene->Ref();
 
         uv_queue_work(uv_default_loop(), req, EIO_DeleteDocumentsByType, EIO_AfterDeleteDocumentsByType);
-        uv_unref((uv_handle_t*) req);
+        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -628,10 +631,9 @@ public:
 
     static Handle<Value> SearchAsync(const Arguments& args) {
         HandleScope scope;
-
         REQ_STR_ARG(0);
         REQ_STR_ARG(1);
-        ///! REQ_FUN_ARG(2, callback);
+        REQ_FUN_ARG(2, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
@@ -643,12 +645,13 @@ public:
         baton->lucene = lucene;
         baton->index.assign(*v8::String::Utf8Value(args[0]));
         baton->search.assign(*v8::String::Utf8Value(args[1]));
-        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+        baton->callback = Persistent<Function>::New(callback);
         baton->error.clear();
-
         lucene->Ref();
+
         uv_queue_work(uv_default_loop(), req, EIO_Search, EIO_AfterSearch);
-        uv_unref((uv_handle_t*) req);
+        //this fixes search query, but it becomes not async
+        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -704,8 +707,6 @@ public:
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
-        
-        return;
     }
 
     static void EIO_AfterSearch(uv_work_t* req, int status)
@@ -765,7 +766,7 @@ public:
         HandleScope scope;
 
         REQ_STR_ARG(0);
-        ///! REQ_FUN_ARG(1, callback);
+        REQ_FUN_ARG(1, callback);
 
         REQ_OBJ_TYPE(args.This(), Lucene);
         Lucene* lucene = ObjectWrap::Unwrap<Lucene>(args.This());
@@ -775,7 +776,7 @@ public:
         req->data = baton;
 
         baton->lucene = lucene;
-        baton->callback = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+        baton->callback = Persistent<Function>::New(callback);
         baton->index = *v8::String::Utf8Value(args[0]);
         baton->error.clear();
 
@@ -851,9 +852,10 @@ public:
 };
 
 Persistent<FunctionTemplate> Lucene::s_ct;
+Persistent<FunctionTemplate> LuceneDocument::s_dt;
 
 extern "C" void init(Handle<Object> target) {
-    Lucene::Init(target);
+    Lucene::Initialize(target);
     LuceneDocument::Initialize(target);
 }
 

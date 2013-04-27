@@ -132,7 +132,9 @@ LIBTOOLFLAGS_Release := \
 	-Wl,-search_paths_first
 
 LIBS := \
-	-undefined dynamic_lookup
+	-undefined dynamic_lookup \
+	 /Volumes/DATA/repos/node-clucene/lib/libclucene-core.dylib \
+	 /Volumes/DATA/repos/node-clucene/lib/libclucene-shared.dylib
 
 $(builddir)/clucene_bindings.node: GYP_LDFLAGS := $(LDFLAGS_$(BUILDTYPE))
 $(builddir)/clucene_bindings.node: LIBS := $(LIBS)
