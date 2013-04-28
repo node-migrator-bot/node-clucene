@@ -6,8 +6,8 @@
       "sources": [ "src/clucene_bindings.cpp" ],
       "link_settings": {
         "libraries": [
-          " /Volumes/DATA/repos/node-clucene/lib/libclucene-core.dylib",
-          " /Volumes/DATA/repos/node-clucene/lib/libclucene-shared.dylib"
+          "<(module_root_dir)/lib/libclucene-core.dylib",
+          "<(module_root_dir)/lib/libclucene-shared.dylib"
         ],
       }
     }
