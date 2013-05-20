@@ -41,18 +41,33 @@ exports['query newly-added document'] = function (test) {
 };
 
 exports['update existing document'] = function (test) {
-    var doc = new cl.Document();
-    var docId = '1';
+    var doc = new cl.Document(),
+        docId = '1';
 
     doc.addField('name', 'Thomas Anderson', cl.STORE_YES|cl.INDEX_TOKENIZED);
     doc.addField('timestamp', '129555555555555', cl.STORE_YES|cl.INDEX_UNTOKENIZED);
+    doc.addField('price', '2', cl.STORE_YES|cl.INDEX_UNTOKENIZED);
 
     clucene.addDocument(docId, doc, indexPath, function(err, indexTime) {
-        test.equal(err, null);
-        test.ok(is('Number', indexTime));
-        clucene.closeWriter();
-        test.done();
+
+    var doc2 = new cl.Document(),
+        docId2 = '2';
+
+        doc2.addField('name', 'Max Muster', cl.STORE_YES|cl.INDEX_TOKENIZED);
+        doc2.addField('timestamp', '129555555555555', cl.STORE_YES|cl.INDEX_UNTOKENIZED);
+        doc2.addField('price', '3', cl.STORE_YES|cl.INDEX_UNTOKENIZED);
+
+        clucene.addDocument(docId2, doc2, indexPath, function(err, indexTime) {
+            test.equal(err, null);
+            test.ok(is('Number', indexTime));
+            clucene.closeWriter();
+            test.done();
+        });
+
+
     });
+
+
 };
 
 exports['query updated document'] = function (test) {
@@ -84,6 +99,19 @@ exports['query by wildcard'] = function (test) {
         test.equal(err, null);
         test.ok(is('Array', results));
         test.ok(is('Number', searchTime));
+        test.equal(results[0]._id, 1);
+        test.equal(results[0].name, 'Thomas Anderson');
+        test.equal(results[0].timestamp, '129555555555555');
+        test.done();
+    });
+};
+
+exports['query by range'] = function (test) {
+    clucene.search(indexPath, 'price:[1 TO 2]', function(err, results, searchTime) {
+        test.equal(err, null);
+        test.ok(is('Array', results));
+        test.ok(is('Number', searchTime));
+        console.log(results);
         test.equal(results[0]._id, 1);
         test.equal(results[0].name, 'Thomas Anderson');
         test.equal(results[0].timestamp, '129555555555555');
