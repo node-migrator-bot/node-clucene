@@ -107,5 +107,5 @@ if (process.argv.length >= 3) {
 }
 
 // Our startup ram check stop
-console.log("Check start size"); 
-nextTest(indexPass);
+// console.log("Check start size"); 
+// nextTest(indexPass);
