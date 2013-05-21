@@ -97,10 +97,6 @@ protected:
             delete key;
             delete value;
             docWrapper->document()->add(*field);
-        // } catch (CLuceneError& E) {
-        //     delete key;
-        //     delete value;
-        //     return scope.Close(ThrowException(Exception::TypeError(String::New(E.what()))));
         } catch(...) {
             delete key;
             delete value;
@@ -127,6 +123,10 @@ protected:
 private:
     Document doc_;
 };
+
+
+
+
 
 class Lucene : public ObjectWrap {
 
@@ -164,17 +164,12 @@ private:
                 IndexReader* newreader = reader->reopen();
                 if (newreader != reader) {
                     //printf("Newreader != reader: %s\n", index.c_str());
-                    //reader->close();
                     _CLLDELETE(reader);
                     reader = newreader;
                 }
             }
             //printf("Finished opening: %s\n", index.c_str());
             readers_[index] = reader;
-
-        // } catch (CLuceneError& E) {
-        //     printf("get_reader Exception: %s\n", E.what());
-        //     error.assign(E.what()); 
         } catch(...) {
             error = "Got an unknown exception \n";
             printf("get_reader Exception:");
@@ -287,7 +282,6 @@ public:
         baton->doc->Ref();
 
         uv_queue_work(uv_default_loop(), req, EIO_Index, EIO_AfterIndex);
-        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -297,8 +291,6 @@ public:
     static void EIO_Index(uv_work_t* req) {
 
         index_baton_t* baton = static_cast<index_baton_t*>(req->data);
-
-        
 
       try {
           bool needsCreation = true;
@@ -342,7 +334,6 @@ public:
           delete value;
           
           // Make the index use as little files as possible, and optimize it
-          
           //writer->optimize();
 
           baton->lucene->close_reader(baton->index);
@@ -358,8 +349,6 @@ public:
           //writer = 0;
 
           baton->indexTime = (Misc::currentTimeMillis() - start);
-        // } catch (CLuceneError& E) {
-        //   baton->error.assign(E.what());
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -435,7 +424,6 @@ public:
         lucene->Ref();
 
         uv_queue_work(uv_default_loop(), req, EIO_DeleteDocument, EIO_AfterDeleteDocument);
-        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -464,13 +452,10 @@ public:
 
             baton->indexTime = (Misc::currentTimeMillis() - start);
             baton->lucene->close_reader(baton->index);
-        // } catch (CLuceneError& E) {
-        //     baton->error.assign(E.what());
         } catch(...) {
             baton->error = "Got an unknown exception";
         }
         //(*(*baton->index), &an, false);
-
         return;
     }
 
@@ -565,8 +550,6 @@ public:
 
           baton->indexTime = (Misc::currentTimeMillis() - start);
           baton->lucene->close_reader(baton->index);
-        // } catch (CLuceneError& E) {
-        //   baton->error.assign(E.what());
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -651,7 +634,6 @@ public:
 
         uv_queue_work(uv_default_loop(), req, EIO_Search, EIO_AfterSearch);
         //this fixes search query, but it becomes not async
-        // uv_unref((uv_handle_t*) req);
 
         return scope.Close(Undefined());
         delete req;
@@ -702,8 +684,6 @@ public:
             _CLLDELETE(hits);
             _CLLDELETE(q);
             baton->searchTime = (Misc::currentTimeMillis() - start);
-        // } catch (CLuceneError& E) {
-        //   baton->error.assign(E.what()); 
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
@@ -811,8 +791,6 @@ public:
 
         writer->close();
         
-        // } catch (CLuceneError& E) {
-        //   baton->error.assign(E.what());
         } catch(...) {
           baton->error = "Got an unknown exception";
         }
