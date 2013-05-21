@@ -87,6 +87,25 @@ REQUIREMENTS:
 =============
 node-clucene requires the CLucene library.	This is not included in this module, you must install it on your own.	 Instructions can be found here (http://clucene.sourceforge.net/)
 
+```shell
+git clone git://clucene.git.sourceforge.net/gitroot/clucene/clucene
+cd clucene/
+git checkout clucene-src-2.3.3.4
+cmake -G "Unix Makefiles"
+make clucene-core
+make install
+```
+
 LICENSE:
 =============
 Apache/LGPL licensed (which is what the CLucene library is licensed with as well)
+
+PRODUCTION NOTES:
+============
+Change binding.gyp:
+
+for debugger: -O0 -g -Wall
+for development and internal release: -O2 -g -Wall
+for release outside the company: -O2 -Wall
+How to install CLucene on the Mac
+

@@ -1,7 +1,6 @@
 var path = require('path');
 var fs = require('fs');
 var wrench = require('wrench');
-var async = require('async');
 
 var cl = require('../clucene').CLucene;
 var clucene = new cl.Lucene();
@@ -10,7 +9,7 @@ var indexPath = './heavy.index';
 
 var testJson = JSON.parse(fs.readFileSync("./test/facebook.json"));
 
-if (path.existsSync(indexPath)) {
+if (fs.existsSync(indexPath)) {
     wrench.rmdirSyncRecursive(indexPath);
 }
 
@@ -108,5 +107,5 @@ if (process.argv.length >= 3) {
 }
 
 // Our startup ram check stop
-console.log("Check start size"); 
-nextTest(indexPass);
+// console.log("Check start size"); 
+// nextTest(indexPass);
